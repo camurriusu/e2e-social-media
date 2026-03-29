@@ -27,7 +27,7 @@ def get_item(item_id: int):
     return user.to_dict(), HTTPStatus.OK
 
 
-@api.post("/user")
+@api.post("/users")
 def create_item():
     payload = request.get_json(silent=True) or {}
     username = str(payload.get("username", "")).strip()

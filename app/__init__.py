@@ -18,7 +18,7 @@ def create_app(test_config: dict | None = None) -> Flask:
     db.init_app(app)
 
     with app.app_context():
-        from . import models  # noqa: F401
+        from . import models
         db.create_all()
 
     app.register_blueprint(api, url_prefix="/api")
