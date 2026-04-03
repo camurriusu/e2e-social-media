@@ -5,6 +5,17 @@ from werkzeug.security import check_password_hash, generate_password_hash
 from .db import db
 
 
+class Post(db.Model):
+    __tablename__ = "posts"
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
+    content = db.Column(db.Text, nullable=False)
+    created_at = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
+
+    author = db.relationship("User", backref="posts")
+
+
 class User(db.Model):
     __tablename__ = "users"
 

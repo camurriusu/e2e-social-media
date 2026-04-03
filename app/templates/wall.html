@@ -17,36 +17,92 @@
   .wall-header h2 { font-size: 1.1rem; font-weight: 600; }
   .wall-header .meta { font-size: .8rem; color: var(--text-dim); }
 
-  /* Compose box placeholder */
+  /* Compose */
   .compose {
     background: var(--surface);
     border: 1px solid var(--border);
     border-radius: 8px;
     padding: 1rem 1.25rem;
     margin-bottom: 1.5rem;
-    color: var(--text-dim);
-    font-size: .9rem;
   }
+  .compose textarea {
+    width: 100%;
+    background: transparent;
+    border: none;
+    outline: none;
+    color: var(--text);
+    font-size: .95rem;
+    font-family: inherit;
+    resize: none;
+    min-height: 72px;
+  }
+  .compose-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: .75rem;
+    padding-top: .75rem;
+    border-top: 1px solid var(--border);
+  }
+  .char-count {
+    font-size: .8rem;
+    color: var(--text-dim);
+    font-variant-numeric: tabular-nums;
+    transition: color .15s;
+  }
+  .char-count.warn { color: #e0a020; }
+  .char-count.over { color: var(--danger); }
 
-  /* Empty state */
+  #post-btn:disabled { opacity: .35; cursor: not-allowed; }
+
+  /* Feed */
+  .divider { border: none; border-top: 1px solid var(--border); margin: 0 0 1.5rem; }
+
+  .post {
+    padding: 1rem 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .post:last-child { border-bottom: none; }
+  .post-meta {
+    display: flex;
+    gap: .6rem;
+    align-items: baseline;
+    margin-bottom: .4rem;
+  }
+  .post-author { font-size: .875rem; font-weight: 600; }
+  .post-time   { font-size: .75rem; color: var(--text-dim); }
+
+  .post-body {
+    font-size: .95rem;
+    line-height: 1.55;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+  .post-body.collapsed {
+    display: -webkit-box;
+    -webkit-line-clamp: 5;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .read-more {
+    margin-top: .35rem;
+    font-size: .8rem;
+    color: var(--text-dim);
+    background: none;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  .read-more:hover { color: var(--text); }
+
   .empty-state {
     text-align: center;
     padding: 4rem 1rem;
     color: var(--text-dim);
   }
-  .empty-state .icon {
-    font-size: 2.5rem;
-    margin-bottom: .75rem;
-    opacity: .35;
-  }
+  .empty-state .icon { margin-bottom: .75rem; opacity: .3; }
   .empty-state p { font-size: .9rem; }
-
-  /* Divider */
-  .divider {
-    border: none;
-    border-top: 1px solid var(--border);
-    margin: 0 0 1.5rem;
-  }
 </style>
 
 <div class="wall-layout">
@@ -55,15 +111,70 @@
     <span class="meta">Signed in as <strong>{{ username }}</strong></span>
   </div>
 
-  <div class="compose">
-    Post composition coming soon&hellip;
-  </div>
+  <form class="compose" method="POST" action="{{ url_for('views.wall') }}" id="compose-form">
+    <textarea name="content" id="compose-text" placeholder="Write something…"></textarea>
+    <div class="compose-footer">
+      <span class="char-count" id="char-count">0 / 280</span>
+      <button type="submit" class="btn btn-primary" id="post-btn" disabled>Post</button>
+    </div>
+  </form>
 
   <hr class="divider">
 
-  <div class="empty-state">
-    <div class="icon">&#9632;</div>
-    <p>No posts yet. Be the first to share something securely.</p>
-  </div>
+  {% if posts %}
+    <div class="feed">
+      {% for post in posts %}
+        <div class="post">
+          <div class="post-meta">
+            <span class="post-author">{{ post.author.username }}</span>
+            <span class="post-time">{{ post.created_at.strftime("%b %d, %Y · %H:%M") }}</span>
+          </div>
+          <div class="post-body collapsed" data-post-body>{{ post.content }}</div>
+        </div>
+      {% endfor %}
+    </div>
+  {% else %}
+    <div class="empty-state">
+      <div class="icon">
+        <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+        </svg>
+      </div>
+      <p>No posts yet. Be the first to share something.</p>
+    </div>
+  {% endif %}
 </div>
+
+<script>
+  const MAX = 280;
+
+  /* ── Compose counter ── */
+  const textarea = document.getElementById("compose-text");
+  const counter  = document.getElementById("char-count");
+  const postBtn  = document.getElementById("post-btn");
+
+  textarea.addEventListener("input", () => {
+    const len = textarea.value.length;
+    counter.textContent = `${len} / ${MAX}`;
+    counter.className = "char-count" +
+      (len > MAX ? " over" : len >= MAX - 20 ? " warn" : "");
+    postBtn.disabled = len === 0 || len > MAX;
+  });
+
+  /* ── Read more / Read less ── */
+  document.querySelectorAll("[data-post-body]").forEach(body => {
+    /* Only add the toggle if the content is actually clamped */
+    if (body.scrollHeight <= body.clientHeight) return;
+
+    const btn = document.createElement("button");
+    btn.className = "read-more";
+    btn.textContent = "Read more";
+    body.after(btn);
+
+    btn.addEventListener("click", () => {
+      const collapsed = body.classList.toggle("collapsed");
+      btn.textContent = collapsed ? "Read more" : "Read less";
+    });
+  });
+</script>
 {% endblock %}

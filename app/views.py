@@ -1,7 +1,7 @@
 from flask import Blueprint, flash, redirect, render_template, request, session, url_for
 
 from .db import db
-from .models import User
+from .models import Post, User
 
 views = Blueprint("views", __name__)
 
@@ -97,8 +97,20 @@ def logout():
     return redirect(url_for("views.login"))
 
 
-@views.get("/wall")
+@views.route("/wall", methods=["GET", "POST"])
 @_login_required
 def wall():
     user = _current_user()
-    return render_template("wall.html", username=user.username)
+    if user is None:
+        session.clear()
+        return redirect(url_for("views.login"))
+
+    if request.method == "POST":
+        content = request.form.get("content", "").strip()
+        if content and len(content) <= 280:
+            db.session.add(Post(user_id=user.id, content=content))
+            db.session.commit()
+        return redirect(url_for("views.wall"))
+
+    posts = Post.query.order_by(Post.created_at.desc()).all()
+    return render_template("wall.html", username=user.username, posts=posts)
