@@ -1,7 +1,10 @@
+import json
+from functools import wraps
+
 from flask import Blueprint, flash, redirect, render_template, request, session, url_for
 
 from .db import db
-from .models import Post, User
+from .models import Group, Post, User
 
 views = Blueprint("views", __name__)
 
@@ -14,15 +17,26 @@ def _current_user() -> User | None:
 
 
 def _login_required(f):
-    from functools import wraps
-
     @wraps(f)
     def decorated(*args, **kwargs):
         if session.get("user_id") is None:
             return redirect(url_for("views.login"))
         return f(*args, **kwargs)
-
     return decorated
+
+
+def _make_solo_group(user: User) -> None:
+    """Create a new group containing only this user."""
+    group = Group()
+    db.session.add(group)
+    db.session.flush()
+    user.group_id = group.id
+
+
+def _cleanup_group(group: Group) -> None:
+    """Delete a group if it has no members."""
+    if not group.members:
+        db.session.delete(group)
 
 
 @views.get("/")
@@ -79,7 +93,12 @@ def register():
             flash("Username already taken.", "error")
             return render_template("register.html")
 
-        user = User(username=username)
+        # Create the user's solo group first, then the user
+        group = Group()
+        db.session.add(group)
+        db.session.flush()
+
+        user = User(username=username, group_id=group.id)
         user.set_password(password)
         db.session.add(user)
         db.session.commit()
@@ -113,4 +132,48 @@ def wall():
         return redirect(url_for("views.wall"))
 
     posts = Post.query.order_by(Post.created_at.desc()).all()
-    return render_template("wall.html", username=user.username, posts=posts)
+    members = User.query.filter_by(group_id=user.group_id).order_by(User.username).all()
+    members_json = json.dumps([{"id": m.id, "username": m.username} for m in members])
+    return render_template("wall.html", username=user.username, posts=posts,
+                           members_json=members_json, current_user_id=user.id)
+
+
+@views.post("/group/add")
+@_login_required
+def group_add():
+    data = request.get_json(silent=True) or {}
+    username = data.get("username", "").strip()
+
+    current = _current_user()
+    target = User.query.filter_by(username=username).first()
+
+    if not target:
+        return {"error": "User not found"}, 404
+    if target.group_id == current.group_id:
+        return {"error": "Already in group"}, 409
+
+    old_group = target.group
+    target.group_id = current.group_id
+    _cleanup_group(old_group)
+    db.session.commit()
+
+    return {"id": target.id, "username": target.username}
+
+
+@views.post("/group/remove/<int:user_id>")
+@_login_required
+def group_remove(user_id):
+    current = _current_user()
+    target = db.session.get(User, user_id)
+
+    if not target or target.group_id != current.group_id:
+        return {"error": "Not in your group"}, 404
+
+    group = current.group
+    if len(group.members) == 1:
+        return {"error": "Cannot remove yourself — you are the only member"}, 400
+
+    _make_solo_group(target)
+    db.session.commit()
+
+    return {"ok": True}

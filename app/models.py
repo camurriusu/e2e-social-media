@@ -5,6 +5,13 @@ from werkzeug.security import check_password_hash, generate_password_hash
 from .db import db
 
 
+class Group(db.Model):
+    __tablename__ = "groups"
+
+    id = db.Column(db.Integer, primary_key=True)
+    members = db.relationship("User", back_populates="group")
+
+
 class Post(db.Model):
     __tablename__ = "posts"
 
@@ -23,7 +30,10 @@ class User(db.Model):
     username = db.Column(db.String(120), unique=True, nullable=False)
     password_hash = db.Column(db.String(256), nullable=False)
     bio = db.Column(db.Text, nullable=True)
+    group_id = db.Column(db.Integer, db.ForeignKey("groups.id"), nullable=False)
     created_at = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
+
+    group = db.relationship("Group", back_populates="members")
 
     def set_password(self, password: str) -> None:
         self.password_hash = generate_password_hash(password)
@@ -38,4 +48,3 @@ class User(db.Model):
             "bio": self.bio or "",
             "created_at": self.created_at.isoformat(),
         }
-
