@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% block title %}Wall — SecureShare{% endblock %}
+
+{% block content %}
+<style>
+  .wall-layout {
+    max-width: 680px;
+    margin: 0 auto;
+    padding: 2rem 1rem;
+  }
+  .wall-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1.75rem;
+  }
+  .wall-header h2 { font-size: 1.1rem; font-weight: 600; }
+  .wall-header .meta { font-size: .8rem; color: var(--text-dim); }
+
+  /* Compose box placeholder */
+  .compose {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1rem 1.25rem;
+    margin-bottom: 1.5rem;
+    color: var(--text-dim);
+    font-size: .9rem;
+  }
+
+  /* Empty state */
+  .empty-state {
+    text-align: center;
+    padding: 4rem 1rem;
+    color: var(--text-dim);
+  }
+  .empty-state .icon {
+    font-size: 2.5rem;
+    margin-bottom: .75rem;
+    opacity: .35;
+  }
+  .empty-state p { font-size: .9rem; }
+
+  /* Divider */
+  .divider {
+    border: none;
+    border-top: 1px solid var(--border);
+    margin: 0 0 1.5rem;
+  }
+</style>
+
+<div class="wall-layout">
+  <div class="wall-header">
+    <h2>Secure Wall</h2>
+    <span class="meta">Signed in as <strong>{{ username }}</strong></span>
+  </div>
+
+  <div class="compose">
+    Post composition coming soon&hellip;
+  </div>
+
+  <hr class="divider">
+
+  <div class="empty-state">
+    <div class="icon">&#9632;</div>
+    <p>No posts yet. Be the first to share something securely.</p>
+  </div>
+</div>
+{% endblock %}

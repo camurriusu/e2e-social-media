@@ -2,11 +2,13 @@ from flask import Flask
 
 from .db import db
 from .routes import api
+from .views import views
 
 
 def create_app(test_config: dict | None = None) -> Flask:
     app = Flask(__name__)
     app.config.update(
+        SECRET_KEY="change-me-before-production",
         JSON_SORT_KEYS=False,
         SQLALCHEMY_DATABASE_URI="sqlite:///app.db",
         SQLALCHEMY_TRACK_MODIFICATIONS=False,
@@ -22,10 +24,7 @@ def create_app(test_config: dict | None = None) -> Flask:
         db.create_all()
 
     app.register_blueprint(api, url_prefix="/api")
-
-    @app.get("/")
-    def index() -> dict[str, str]:
-        return {"message": "Flask is running"}
+    app.register_blueprint(views)
 
     return app
 
