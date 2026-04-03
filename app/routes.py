@@ -31,8 +31,6 @@ def get_item(item_id: int):
 def create_item():
     payload = request.get_json(silent=True) or {}
     username = str(payload.get("username", "")).strip()
-    bio = str(payload.get("bio", "")).strip()
-
     if not username:
         return (
             {
@@ -41,7 +39,7 @@ def create_item():
             HTTPStatus.BAD_REQUEST,
         )
 
-    user = User(username=username, bio=bio)
+    user = User(username=username)
     db.session.add(user)
     db.session.commit()
 

@@ -27,4 +27,3 @@ def create_app(test_config: dict | None = None) -> Flask:
     app.register_blueprint(views)
 
     return app
-

@@ -29,7 +29,6 @@ class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(120), unique=True, nullable=False)
     password_hash = db.Column(db.String(256), nullable=False)
-    bio = db.Column(db.Text, nullable=True)
     group_id = db.Column(db.Integer, db.ForeignKey("groups.id"), nullable=False)
     created_at = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
 
@@ -45,6 +44,5 @@ class User(db.Model):
         return {
             "id": self.id,
             "username": self.username,
-            "bio": self.bio or "",
             "created_at": self.created_at.isoformat(),
         }

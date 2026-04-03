@@ -11,7 +11,7 @@ def test_health(client):
 def test_create_and_fetch_user(client):
     create_response = client.post(
         "/api/users",
-        json={"username": "John Doe", "bio": "Not real"},
+        json={"username": "John Doe"},
     )
 
     assert create_response.status_code == HTTPStatus.CREATED
