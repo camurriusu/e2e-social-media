@@ -11,6 +11,44 @@ from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.x509.oid import NameOID
 
 
+# --- CA side (called by app) ---
+def generate_ca() -> tuple[rsa.RSAPrivateKey, x509.Certificate]:
+    # Generate CA keypair and self-signed cert at first startup
+    keypair = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+    cert = (
+        x509.CertificateBuilder().subject_name(x509.Name([
+            x509.NameAttribute(NameOID.COMMON_NAME, "SecureShare CA"),
+            x509.NameAttribute(NameOID.ORGANIZATION_NAME, "SecureShare")]))
+        .issuer_name(x509.Name([
+            x509.NameAttribute(NameOID.COMMON_NAME, "SecureShare CA"),
+            x509.NameAttribute(NameOID.ORGANIZATION_NAME, "SecureShare")]))
+        .public_key(keypair.public_key())
+        .serial_number(x509.random_serial_number())
+        .not_valid_before(datetime.now(timezone.utc))
+        .not_valid_after(datetime.now(timezone.utc) + timedelta(days=3650))
+        .add_extension(x509.BasicConstraints(ca=True, path_length=0), critical=True)
+        .add_extension(x509.KeyUsage(
+            digital_signature=True,
+            key_cert_sign=True,
+            crl_sign=True,
+            key_encipherment=False,
+            content_commitment=False,
+            data_encipherment=False,
+            key_agreement=False,
+            encipher_only=False,
+            decipher_only=False
+        ), critical=True)
+        .add_extension(x509.SubjectKeyIdentifier.from_public_key(keypair.public_key()), critical=False)
+        .sign(keypair, hashes.SHA256())
+    )
+    return keypair, cert
+
+def load_ca(keypair_path: Path, cert_path: Path) -> tuple[rsa.RSAPrivateKey, x509.Certificate]:
+    # Load CA keypair and cert if exists
+    keypair = serialization.load_pem_private_key(keypair_path.read_bytes(), password=None)
+    cert = x509.load_pem_x509_certificate(cert_path.read_bytes())
+    return keypair, cert
+
 # --- Sender side ---
 def verify_cert(pem: str, ca_cert: x509.Certificate) -> bool:
     try:
@@ -37,7 +75,7 @@ def encrypt_symmetric_key(aes_key: bytes, pem: str) -> str:
     # Encrypt AES key using RSA public key
     cert = x509.load_pem_x509_certificate(pem.encode())
     public_key = cert.public_key()
-    ciphertext = public_key.encrypt(aes_key, padding.OAEP(mgf=rsa.MGF1(hashes.SHA256()), algorithm=hashes.SHA256(), label=None))
+    ciphertext = public_key.encrypt(aes_key, padding.OAEP(mgf=padding.MGF1(hashes.SHA256()), algorithm=hashes.SHA256(), label=None))
     return base64.b64encode(ciphertext).decode()
 
 # --- Receiver side ---
@@ -79,7 +117,7 @@ def generate_keypair(username: str, ca_cert: x509.Certificate, ca_key: rsa.RSAPr
 def decrypt_symmetric_key(encrypted: str, private_key: rsa.RSAPrivateKey) -> bytes:
     # Decrypt AES key using RSA private key
     ciphertext = base64.b64decode(encrypted)
-    aes_key = private_key.decrypt(ciphertext, padding.OAEP(mgf=rsa.MGF1(hashes.SHA256()), algorithm=hashes.SHA256(), label=None))
+    aes_key = private_key.decrypt(ciphertext, padding.OAEP(mgf=padding.MGF1(hashes.SHA256()), algorithm=hashes.SHA256(), label=None))
     return aes_key
 
 def decrypt_post(encrypted: str, aes_key: bytes) -> str:
@@ -92,7 +130,7 @@ def _kdf(password: str, salt: bytes) -> bytes:
     # Take password and salt to derive AES key
     return PBKDF2HMAC(hashes.SHA256(), 32, salt, 390000).derive(password.encode())
 
-def encrypt_private_key(private_key: rsa.RSAPrivateKey, password: str) -> tuple[str, bytes]:
+def encrypt_private_key(private_key: rsa.RSAPrivateKey, password: str) -> tuple[str, str]:
     salt = os.urandom(16) # Unique per user avoids same aes_key for same password
     aes_key = _kdf(password, salt)
     # Serialise to PEM format before encryption
@@ -105,8 +143,8 @@ def encrypt_private_key(private_key: rsa.RSAPrivateKey, password: str) -> tuple[
     # SQLite only supports Text so must encode as base64
     # Include nonce in encoding since needed for decryption
     encrypted = base64.b64encode(nonce + ciphertext).decode()
-    # Return salt since needed for decryption
-    return encrypted, salt
+    # Return salt as hex (SQLite can't store bytes) since needed for decryption
+    return encrypted, salt.hex()
 
 def decrypt_private_key(encrypted: str, salt: bytes, password: str) -> rsa.RSAPrivateKey:
     decrypted = base64.b64decode(encrypted)
