@@ -147,8 +147,8 @@ def encrypt_private_key(private_key: rsa.RSAPrivateKey, password: str) -> tuple[
     aes_key = _kdf(password, salt)
     # Serialise to PEM format before encryption
     private_key_pem = private_key.private_bytes(encoding=serialization.Encoding.PEM,
-                                    format=serialization.PrivateFormat.PKCS8,
-                                    encryption_algorithm=serialization.NoEncryption())
+                                                format=serialization.PrivateFormat.PKCS8,
+                                                encryption_algorithm=serialization.NoEncryption())
     # Encrypt with random nonce
     nonce = os.urandom(12)
     ciphertext = AESGCM(aes_key).encrypt(nonce, private_key_pem, None)
