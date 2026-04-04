@@ -1,0 +1,175 @@
+.wall-layout {
+  max-width: 680px;
+  margin: 0 auto;
+  padding: 2rem 1rem;
+}
+.wall-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1.75rem;
+}
+.wall-header h2 { font-size: 1.1rem; font-weight: 600; }
+.wall-header .meta { font-size: .8rem; color: var(--text-dim); }
+
+/* Compose */
+.compose {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 1rem 1.25rem;
+  margin-bottom: 1.5rem;
+}
+.compose textarea {
+  width: 100%;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--text);
+  font-size: .95rem;
+  font-family: inherit;
+  resize: none;
+  min-height: 72px;
+}
+.compose-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: .75rem;
+  padding-top: .75rem;
+  border-top: 1px solid var(--border);
+}
+.char-count {
+  font-size: .8rem;
+  color: var(--text-dim);
+  font-variant-numeric: tabular-nums;
+  transition: color .15s;
+}
+.char-count.warn { color: #e0a020; }
+.char-count.over { color: var(--danger); }
+
+#post-btn:disabled { opacity: .35; cursor: not-allowed; }
+
+/* Group panel */
+.group-panel { margin-bottom: 1.5rem; }
+.group-label {
+  font-size: .75rem;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: .07em;
+  margin-bottom: .6rem;
+}
+.group-circles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .5rem;
+  align-items: center;
+}
+.circle {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--border);
+  border: 1px solid var(--muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: .75rem;
+  font-weight: 600;
+  color: var(--text);
+  cursor: default;
+  position: relative;
+  flex-shrink: 0;
+  user-select: none;
+}
+.circle.removable { cursor: pointer; }
+.circle.removable .circle-remove {
+  display: none;
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: rgba(192, 57, 43, 0.85);
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+  color: #fff;
+}
+.circle.removable:hover .circle-remove { display: flex; }
+.circle.overflow { color: var(--text-dim); font-size: .7rem; cursor: default; }
+.circle.add-btn {
+  border-style: dashed;
+  color: var(--text-dim);
+  cursor: pointer;
+  transition: border-color .15s, color .15s;
+}
+.circle.add-btn:hover { border-color: var(--text); color: var(--text); }
+
+.add-input-wrap { display: flex; align-items: center; gap: .4rem; }
+.add-input-wrap input {
+  width: 130px;
+  padding: .3rem .6rem;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text);
+  font-size: .85rem;
+  outline: none;
+}
+.add-input-wrap input:focus { border-color: var(--muted); }
+@keyframes shake {
+  0%,100% { transform: translateX(0); }
+  20%      { transform: translateX(-6px); }
+  40%      { transform: translateX(6px); }
+  60%      { transform: translateX(-4px); }
+  80%      { transform: translateX(4px); }
+}
+.add-input-wrap input.shake { animation: shake .35s ease; border-color: var(--danger); }
+
+/* Feed */
+.divider { border: none; border-top: 1px solid var(--border); margin: 0 0 1.5rem; }
+
+.post {
+  padding: 1rem 0;
+  border-bottom: 1px solid var(--border);
+}
+.post:last-child { border-bottom: none; }
+.post-meta {
+  display: flex;
+  gap: .6rem;
+  align-items: baseline;
+  margin-bottom: .4rem;
+}
+.post-author { font-size: .875rem; font-weight: 600; }
+.post-time   { font-size: .75rem; color: var(--text-dim); }
+
+.post-body {
+  font-size: .95rem;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.post-body.collapsed {
+  display: -webkit-box;
+  -webkit-line-clamp: 5;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.read-more {
+  margin-top: .35rem;
+  font-size: .8rem;
+  color: var(--text-dim);
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  font-family: inherit;
+}
+.read-more:hover { color: var(--text); }
+
+.empty-state {
+  text-align: center;
+  padding: 4rem 1rem;
+  color: var(--text-dim);
+}
+.empty-state .icon { margin-bottom: .75rem; opacity: .3; }
+.empty-state p { font-size: .9rem; }

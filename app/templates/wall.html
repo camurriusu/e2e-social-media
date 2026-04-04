@@ -1,186 +1,11 @@
 {% extends "base.html" %}
 {% block title %}Wall — SecureShare{% endblock %}
 
+{% block styles %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/wall.css') }}">
+{% endblock %}
+
 {% block content %}
-<style>
-  .wall-layout {
-    max-width: 680px;
-    margin: 0 auto;
-    padding: 2rem 1rem;
-  }
-  .wall-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 1.75rem;
-  }
-  .wall-header h2 { font-size: 1.1rem; font-weight: 600; }
-  .wall-header .meta { font-size: .8rem; color: var(--text-dim); }
-
-  /* Compose */
-  .compose {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 1rem 1.25rem;
-    margin-bottom: 1.5rem;
-  }
-  .compose textarea {
-    width: 100%;
-    background: transparent;
-    border: none;
-    outline: none;
-    color: var(--text);
-    font-size: .95rem;
-    font-family: inherit;
-    resize: none;
-    min-height: 72px;
-  }
-  .compose-footer {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-top: .75rem;
-    padding-top: .75rem;
-    border-top: 1px solid var(--border);
-  }
-  .char-count {
-    font-size: .8rem;
-    color: var(--text-dim);
-    font-variant-numeric: tabular-nums;
-    transition: color .15s;
-  }
-  .char-count.warn { color: #e0a020; }
-  .char-count.over { color: var(--danger); }
-
-  #post-btn:disabled { opacity: .35; cursor: not-allowed; }
-
-  /* Group panel */
-  .group-panel {
-    margin-bottom: 1.5rem;
-  }
-  .group-label {
-    font-size: .75rem;
-    color: var(--text-dim);
-    text-transform: uppercase;
-    letter-spacing: .07em;
-    margin-bottom: .6rem;
-  }
-  .group-circles {
-    display: flex;
-    flex-wrap: wrap;
-    gap: .5rem;
-    align-items: center;
-  }
-  .circle {
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-    background: var(--border);
-    border: 1px solid var(--muted);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: .75rem;
-    font-weight: 600;
-    color: var(--text);
-    cursor: default;
-    position: relative;
-    flex-shrink: 0;
-    user-select: none;
-  }
-  .circle.removable { cursor: pointer; }
-  .circle.removable .circle-remove {
-    display: none;
-    position: absolute;
-    inset: 0;
-    border-radius: 50%;
-    background: rgba(192, 57, 43, 0.85);
-    align-items: center;
-    justify-content: center;
-    font-size: 1rem;
-    color: #fff;
-  }
-  .circle.removable:hover .circle-remove { display: flex; }
-  .circle.overflow { color: var(--text-dim); font-size: .7rem; cursor: default; }
-  .circle.add-btn {
-    border-style: dashed;
-    color: var(--text-dim);
-    cursor: pointer;
-    transition: border-color .15s, color .15s;
-  }
-  .circle.add-btn:hover { border-color: var(--text); color: var(--text); }
-
-  .add-input-wrap { display: flex; align-items: center; gap: .4rem; }
-  .add-input-wrap input {
-    width: 130px;
-    padding: .3rem .6rem;
-    background: var(--bg);
-    border: 1px solid var(--border);
-    border-radius: 4px;
-    color: var(--text);
-    font-size: .85rem;
-    outline: none;
-  }
-  .add-input-wrap input:focus { border-color: var(--muted); }
-  @keyframes shake {
-    0%,100% { transform: translateX(0); }
-    20%      { transform: translateX(-6px); }
-    40%      { transform: translateX(6px); }
-    60%      { transform: translateX(-4px); }
-    80%      { transform: translateX(4px); }
-  }
-  .add-input-wrap input.shake { animation: shake .35s ease; border-color: var(--danger); }
-
-  /* Feed */
-  .divider { border: none; border-top: 1px solid var(--border); margin: 0 0 1.5rem; }
-
-  .post {
-    padding: 1rem 0;
-    border-bottom: 1px solid var(--border);
-  }
-  .post:last-child { border-bottom: none; }
-  .post-meta {
-    display: flex;
-    gap: .6rem;
-    align-items: baseline;
-    margin-bottom: .4rem;
-  }
-  .post-author { font-size: .875rem; font-weight: 600; }
-  .post-time   { font-size: .75rem; color: var(--text-dim); }
-
-  .post-body {
-    font-size: .95rem;
-    line-height: 1.55;
-    white-space: pre-wrap;
-    word-break: break-word;
-  }
-  .post-body.collapsed {
-    display: -webkit-box;
-    -webkit-line-clamp: 5;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-  }
-  .read-more {
-    margin-top: .35rem;
-    font-size: .8rem;
-    color: var(--text-dim);
-    background: none;
-    border: none;
-    padding: 0;
-    cursor: pointer;
-    font-family: inherit;
-  }
-  .read-more:hover { color: var(--text); }
-
-  .empty-state {
-    text-align: center;
-    padding: 4rem 1rem;
-    color: var(--text-dim);
-  }
-  .empty-state .icon { margin-bottom: .75rem; opacity: .3; }
-  .empty-state p { font-size: .9rem; }
-</style>
 
 <div class="wall-layout">
   <div class="wall-header">
@@ -189,7 +14,7 @@
   </div>
 
   <form class="compose" method="POST" action="{{ url_for('views.wall') }}" id="compose-form">
-    <textarea name="content" id="compose-text" placeholder="Write something…"></textarea>
+      <label for="compose-text"></label><textarea name="content" id="compose-text" placeholder="Write something…"></textarea>
     <div class="compose-footer">
       <span class="char-count" id="char-count">0 / 280</span>
       <button type="submit" class="btn btn-primary" id="post-btn" disabled>Post</button>
@@ -219,7 +44,7 @@
     <div class="empty-state">
       <div class="icon">
         <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
         </svg>
       </div>
       <p>No posts yet. Be the first to share something.</p>
@@ -228,145 +53,8 @@
 </div>
 
 <script>
-  const MAX         = 280;
-  const CURRENT_ID  = {{ current_user_id }};
-  const VISIBLE_MAX = 6;
-
-  /* ── Compose counter ── */
-  const textarea = document.getElementById("compose-text");
-  const counter  = document.getElementById("char-count");
-  const postBtn  = document.getElementById("post-btn");
-
-  textarea.addEventListener("input", () => {
-    const len = textarea.value.length;
-    counter.textContent = `${len} / ${MAX}`;
-    counter.className = "char-count" +
-      (len > MAX ? " over" : len >= MAX - 20 ? " warn" : "");
-    postBtn.disabled = len === 0 || len > MAX;
-  });
-
-  /* ── Read more / Read less ── */
-  document.querySelectorAll("[data-post-body]").forEach(body => {
-    if (body.scrollHeight <= body.clientHeight) return;
-    const btn = document.createElement("button");
-    btn.className = "read-more";
-    btn.textContent = "Read more";
-    body.after(btn);
-    btn.addEventListener("click", () => {
-      const collapsed = body.classList.toggle("collapsed");
-      btn.textContent = collapsed ? "Read more" : "Read less";
-    });
-  });
-
-  /* ── Group circles ── */
+  const CURRENT_ID = {{ current_user_id }};
   let members = {{ members_json | safe }};
-  const container = document.getElementById("group-circles");
-
-  function initials(username) {
-    return username.slice(0, 2).toUpperCase();
-  }
-
-  function renderCircles() {
-    container.innerHTML = "";
-    const visible    = members.slice(0, VISIBLE_MAX);
-    const overflow   = members.length - VISIBLE_MAX;
-    const canRemove  = members.length > 1;
-
-    visible.forEach(m => {
-      const el = document.createElement("div");
-      el.className = "circle" + (canRemove ? " removable" : "");
-      el.title = m.username;
-      el.textContent = initials(m.username);
-
-      if (canRemove) {
-        const x = document.createElement("span");
-        x.className = "circle-remove";
-        x.textContent = "✕";
-        el.appendChild(x);
-        el.addEventListener("click", () => removeMember(m.id));
-      }
-      container.appendChild(el);
-    });
-
-    if (overflow > 0) {
-      const el = document.createElement("div");
-      el.className = "circle overflow";
-      el.title = members.slice(VISIBLE_MAX).map(m => m.username).join("\n");
-      el.textContent = `+${overflow}`;
-      container.appendChild(el);
-    }
-
-    container.appendChild(makeAddButton());
-  }
-
-  const PLUS_SVG = `<svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="7" y1="1" x2="7" y2="13"/><line x1="1" y1="7" x2="13" y2="7"/></svg>`;
-
-  function makeAddButton() {
-    const btn = document.createElement("div");
-    btn.className = "circle add-btn";
-    btn.title = "Add member";
-    btn.innerHTML = PLUS_SVG;
-    btn.addEventListener("click", () => showAddInput(btn));
-    return btn;
-  }
-
-  function showAddInput(addBtn) {
-    addBtn.replaceWith(makeInputWidget());
-  }
-
-  function makeInputWidget() {
-    const wrap  = document.createElement("div");
-    wrap.className = "add-input-wrap";
-    const input = document.createElement("input");
-    input.type        = "text";
-    input.placeholder = "Username";
-    input.autofocus   = true;
-    wrap.appendChild(input);
-
-    setTimeout(() => input.focus(), 0);
-
-    input.addEventListener("blur", () => setTimeout(renderCircles, 150));
-
-    input.addEventListener("keydown", async e => {
-      if (e.key === "Escape") { renderCircles(); return; }
-      if (e.key !== "Enter")  return;
-      const username = input.value.trim();
-      if (!username) return;
-
-      const res  = await fetch("/group/add", {
-        method:  "POST",
-        headers: { "Content-Type": "application/json" },
-        body:    JSON.stringify({ username }),
-      });
-
-      if (!res.ok) {
-        input.classList.remove("shake");
-        void input.offsetWidth; // reflow to restart animation
-        input.classList.add("shake");
-        input.addEventListener("animationend", () => input.classList.remove("shake"), { once: true });
-        return;
-      }
-
-      const member = await res.json();
-      members.push(member);
-      renderCircles();
-    });
-
-    return wrap;
-  }
-
-  async function removeMember(userId) {
-    const res = await fetch(`/group/remove/${userId}`, { method: "POST" });
-    if (!res.ok) return;
-    if (userId === CURRENT_ID) {
-      // Current user left the group — reload to reflect their new solo group
-      location.reload();
-    } else {
-      members = members.filter(m => m.id !== userId);
-      renderCircles();
-    }
-  }
-
-  renderCircles();
 </script>
+<script src="{{ url_for('static', filename='js/wall.js') }}"></script>
 {% endblock %}

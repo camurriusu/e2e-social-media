@@ -1,10 +1,12 @@
 import json
 from functools import wraps
 
-from flask import Blueprint, flash, redirect, render_template, request, session, url_for
+from cryptography.hazmat.primitives import serialization
+from flask import Blueprint, flash, redirect, render_template, request, session, url_for, current_app
 
+from .crypto import generate_keypair, encrypt_private_key, decrypt_private_key, encrypt_post, encrypt_symmetric_key
 from .db import db
-from .models import Group, Post, User
+from .models import Group, Post, User, PostKey
 
 views = Blueprint("views", __name__)
 
@@ -62,6 +64,12 @@ def login():
 
         session.clear()
         session["user_id"] = user.id
+
+        # Decrypt encrypted private key and save it in PEM format
+        keypair = decrypt_private_key(user.private_key, user.salt, password)
+        session["private_key_pem"] = keypair.private_bytes(serialization.Encoding.PEM,
+                                                           serialization.PrivateFormat.PKCS8,
+                                                           serialization.NoEncryption()).decode()
         return redirect(url_for("views.wall"))
 
     return render_template("login.html")
@@ -103,8 +111,20 @@ def register():
         db.session.add(user)
         db.session.commit()
 
+        keypair, cert = generate_keypair(username, current_app.config["CA_CERT"], current_app.config["CA_KEY"])
+        private_key, salt = encrypt_private_key(keypair, password)
+
+        user.certificate = cert.public_bytes(serialization.Encoding.PEM).decode()
+        user.private_key = private_key
+        user.salt = salt
+        db.session.commit()
+
         session.clear()
         session["user_id"] = user.id
+        # Save private key in PEM format
+        session["private_key_pem"] = keypair.private_bytes(serialization.Encoding.PEM,
+                                                           serialization.PrivateFormat.PKCS8,
+                                                           serialization.NoEncryption()).decode()
         return redirect(url_for("views.wall"))
 
     return render_template("register.html")
@@ -127,7 +147,17 @@ def wall():
     if request.method == "POST":
         content = request.form.get("content", "").strip()
         if content and len(content) <= 280:
-            db.session.add(Post(user_id=user.id, content=content))
+            ciphertext, aes_key = encrypt_post(content)
+            post = Post(user_id=user.id, content=ciphertext)
+            db.session.add(post)
+            # Flush to get post id
+            db.session.flush()
+            # For every member in the same group
+            for member in User.query.filter_by(group_id=user.group_id).all():
+                if member.certificate:
+                    # Encrypt post AES key with member's public key
+                    encrypted_key = encrypt_symmetric_key(aes_key, member.certificate)
+                    db.session.add(PostKey(post_id=post.id, user_id=member.id, key=encrypted_key))
             db.session.commit()
         return redirect(url_for("views.wall"))
 

@@ -23,12 +23,29 @@ class Post(db.Model):
     author = db.relationship("User", backref="posts")
 
 
+class PostKey(db.Model):
+    __tablename__ = "post_keys"
+
+    id = db.Column(db.Integer, primary_key=True)
+    post_id = db.Column(db.Integer, db.ForeignKey("posts.id"), ondelete="CASCADE", nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), ondelete="CASCADE", nullable=False)
+    key = db.Column(db.Text, nullable=False)
+
+    __table_args__ = (db.UniqueConstraint("post_id", "user_id"))
+
+    post = db.relationship("Post", backref=db.backref("keys", cascade="all, delete-orphan"))
+    user = db.relationship("User")
+
+
 class User(db.Model):
     __tablename__ = "users"
 
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(120), unique=True, nullable=False)
     password_hash = db.Column(db.String(256), nullable=False)
+    certificate = db.Column(db.Text, nullable=True)
+    private_key = db.Column(db.Text, nullable=True)
+    salt = db.Column(db.String(32), nullable=True)
     group_id = db.Column(db.Integer, db.ForeignKey("groups.id"), nullable=False)
     created_at = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
 
