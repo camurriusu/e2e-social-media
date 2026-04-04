@@ -1,10 +1,12 @@
 import json
 from functools import wraps
 
+from cryptography import x509
 from cryptography.hazmat.primitives import serialization
 from flask import Blueprint, flash, redirect, render_template, request, session, url_for, current_app
 
-from .crypto import generate_keypair, encrypt_private_key, decrypt_private_key, encrypt_post, encrypt_symmetric_key
+from .crypto import generate_keypair, encrypt_private_key, decrypt_private_key, encrypt_post, encrypt_symmetric_key, \
+    decrypt_symmetric_key, decrypt_post
 from .db import db
 from .models import Group, Post, User, PostKey
 
@@ -156,12 +158,27 @@ def wall():
             for member in User.query.filter_by(group_id=user.group_id).all():
                 if member.certificate:
                     # Encrypt post AES key with member's public key
-                    encrypted_key = encrypt_symmetric_key(aes_key, member.certificate)
+                    public_key = x509.load_pem_x509_certificate(member.certificate.encode()).public_key()
+                    encrypted_key = encrypt_symmetric_key(aes_key, public_key)
+                    # A record for each member in the group is created, each with a copy of the encrypted AES key
                     db.session.add(PostKey(post_id=post.id, user_id=member.id, key=encrypted_key))
             db.session.commit()
         return redirect(url_for("views.wall"))
 
     posts = Post.query.order_by(Post.created_at.desc()).all()
+
+    # Get RSAPrivateKey from session PEM
+    private_key_pem = session["private_key_pem"]
+    private_key = serialization.load_pem_private_key(private_key_pem, password=None)
+    # Make map {post id: encrypted aes key} of posts that this user can read
+    post_keys = {postkey.post_id: postkey.key for postkey in PostKey.query.filter_by(user_id=user.id).all()}
+    # Iterate over all posts
+    # Decrypt posts with post_id in post_keys using private key
+    for post in posts:
+        if post.id in post_keys:
+            aes_key = decrypt_symmetric_key(post_keys[post.id], private_key)
+            post.content = decrypt_post(post.content, aes_key)
+
     members = User.query.filter_by(group_id=user.group_id).order_by(User.username).all()
     members_json = json.dumps([{"id": m.id, "username": m.username} for m in members])
     return render_template("wall.html", username=user.username, posts=posts,

@@ -75,12 +75,12 @@ def encrypt_post(text: str):
     return encrypted, aes_key
 
 
-def encrypt_symmetric_key(aes_key: bytes, pem: str) -> str:
+def encrypt_symmetric_key(aes_key: bytes, public_key: rsa.RSAPublicKey) -> str:
     # Encrypt AES key using RSA public key
-    cert = x509.load_pem_x509_certificate(pem.encode())
-    public_key = cert.public_key()
-    ciphertext = public_key.encrypt(aes_key, padding.OAEP(mgf=padding.MGF1(hashes.SHA256()), algorithm=hashes.SHA256(),
-                                                          label=None))
+    ciphertext = public_key.encrypt(aes_key,
+                                    padding.OAEP(mgf=padding.MGF1(hashes.SHA256()),
+                                    algorithm=hashes.SHA256(),
+                                    label=None))
     return base64.b64encode(ciphertext).decode()
 
 
@@ -146,12 +146,12 @@ def encrypt_private_key(private_key: rsa.RSAPrivateKey, password: str) -> tuple[
     salt = os.urandom(16)  # Unique per user avoids same aes_key for same password of different user
     aes_key = _kdf(password, salt)
     # Serialise to PEM format before encryption
-    pem = private_key.private_bytes(encoding=serialization.Encoding.PEM,
+    private_key_pem = private_key.private_bytes(encoding=serialization.Encoding.PEM,
                                     format=serialization.PrivateFormat.PKCS8,
                                     encryption_algorithm=serialization.NoEncryption())
     # Encrypt with random nonce
     nonce = os.urandom(12)
-    ciphertext = AESGCM(aes_key).encrypt(nonce, pem, None)
+    ciphertext = AESGCM(aes_key).encrypt(nonce, private_key_pem, None)
     # SQLite only supports Text so must encode as base64
     # Include nonce in encoding since needed for decryption
     encrypted = base64.b64encode(nonce + ciphertext).decode()
@@ -166,5 +166,5 @@ def decrypt_private_key(encrypted: str, salt_hex: str, password: str) -> rsa.RSA
     salt = bytes.fromhex(salt_hex)
     aes_key = _kdf(password, salt)
     # Use aes_key to decrypt ciphertext to get PEM and convert to RSAPrivateKey
-    pem = AESGCM(aes_key).decrypt(nonce, ciphertext, None)
-    return serialization.load_pem_private_key(pem, password=None)
+    private_key_pem = AESGCM(aes_key).decrypt(nonce, ciphertext, None)
+    return serialization.load_pem_private_key(private_key_pem, password=None)
