@@ -30,13 +30,13 @@
 
   {% if posts %}
     <div class="feed">
-      {% for post in posts %}
+      {% for post, content in posts %}
         <div class="post">
           <div class="post-meta">
             <span class="post-author">{{ post.author.username }}</span>
             <span class="post-time">{{ post.created_at.strftime("%b %d, %Y · %H:%M") }}</span>
           </div>
-          <div class="post-body collapsed" data-post-body>{{ post.content }}</div>
+          <div class="post-body collapsed" data-post-body>{{ content }}</div>
         </div>
       {% endfor %}
     </div>

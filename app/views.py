@@ -168,19 +168,30 @@ def wall():
     posts = Post.query.order_by(Post.created_at.desc()).all()
 
     # Get RSAPrivateKey from session PEM
-    private_key = serialization.load_pem_private_key(session["private_key_pem"], password=None)
+    # If not found, then logout since session likely expired
+    if not session.get("private_key_pem"):
+        return redirect(url_for("views.logout"))
+
+    private_key = serialization.load_pem_private_key(session["private_key_pem"].encode(), password=None)
     # Make map {post id: encrypted aes key} of posts that this user can read
     post_keys = {postkey.post_id: postkey.key for postkey in PostKey.query.filter_by(user_id=user.id).all()}
+
+    # List of (post, post_content) to pass decrypted content to template
+    # without modifying post object in db
+    new_posts = []
     # Iterate over all posts
     # Decrypt posts with post_id in post_keys using private key
     for post in posts:
         if post.id in post_keys:
             aes_key = decrypt_symmetric_key(post_keys[post.id], private_key)
-            post.content = decrypt_post(post.content, aes_key)
+            decrypted_content = decrypt_post(post.content, aes_key)
+            new_posts.append((post, decrypted_content))
+        else:
+            new_posts.append((post, post.content))
 
     members = User.query.filter_by(group_id=user.group_id).order_by(User.username).all()
     members_json = json.dumps([{"id": m.id, "username": m.username} for m in members])
-    return render_template("wall.html", username=user.username, posts=posts,
+    return render_template("wall.html", username=user.username, posts=new_posts,
                            members_json=members_json, current_user_id=user.id)
 
 
@@ -200,7 +211,12 @@ def group_add():
         return {"error": "Already in group"}, 409
 
     # Get RSAPrivateKey from session PEM
-    private_key = serialization.load_pem_private_key(session["private_key_pem"], password=None)
+    # If not found, then return error since session likely expired
+    if not session.get("private_key_pem"):
+        # Can't redirect since this endpoint is called by fetch() and not by browser
+        # 401 redirects to login page in wall.js anyway
+        return {"error": "Session expired"}, 401
+    private_key = serialization.load_pem_private_key(session["private_key_pem"].encode(), password=None)
 
     old_group = target.group
     target.group_id = user.group_id

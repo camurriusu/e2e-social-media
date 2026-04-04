@@ -27,11 +27,11 @@ class PostKey(db.Model):
     __tablename__ = "post_keys"
 
     id = db.Column(db.Integer, primary_key=True)
-    post_id = db.Column(db.Integer, db.ForeignKey("posts.id"), ondelete="CASCADE", nullable=False)
-    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), ondelete="CASCADE", nullable=False)
+    post_id = db.Column(db.Integer, db.ForeignKey("posts.id", ondelete="CASCADE"), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     key = db.Column(db.Text, nullable=False)
 
-    __table_args__ = (db.UniqueConstraint("post_id", "user_id"))
+    __table_args__ = (db.UniqueConstraint("post_id", "user_id"),)
 
     post = db.relationship("Post", backref=db.backref("keys", cascade="all, delete-orphan"))
     user = db.relationship("User")
