@@ -168,8 +168,7 @@ def wall():
     posts = Post.query.order_by(Post.created_at.desc()).all()
 
     # Get RSAPrivateKey from session PEM
-    private_key_pem = session["private_key_pem"]
-    private_key = serialization.load_pem_private_key(private_key_pem, password=None)
+    private_key = serialization.load_pem_private_key(session["private_key_pem"], password=None)
     # Make map {post id: encrypted aes key} of posts that this user can read
     post_keys = {postkey.post_id: postkey.key for postkey in PostKey.query.filter_by(user_id=user.id).all()}
     # Iterate over all posts
@@ -191,19 +190,32 @@ def group_add():
     data = request.get_json(silent=True) or {}
     username = data.get("username", "").strip()
 
-    current = _current_user()
+    user = _current_user()
+    # target is the user to add
     target = User.query.filter_by(username=username).first()
 
     if not target:
         return {"error": "User not found"}, 404
-    if target.group_id == current.group_id:
+    if target.group_id == user.group_id:
         return {"error": "Already in group"}, 409
 
-    old_group = target.group
-    target.group_id = current.group_id
-    _cleanup_group(old_group)
-    db.session.commit()
+    # Get RSAPrivateKey from session PEM
+    private_key = serialization.load_pem_private_key(session["private_key_pem"], password=None)
 
+    old_group = target.group
+    target.group_id = user.group_id
+    _cleanup_group(old_group)
+
+    # Copy every PostKey the user holds to the target user
+    for postkey in PostKey.query.filter_by(user_id=user.id).all():
+        # Get AES key inside postkey
+        aes_key = decrypt_symmetric_key(postkey.key, private_key)
+        # Encrypt it using target's public key so that they can decrypt it to read the post
+        target_public_key = x509.load_pem_x509_certificate(target.certificate.encode()).public_key()
+        encrypted_key = encrypt_symmetric_key(aes_key, target_public_key)
+        db.session.add(PostKey(post_id=postkey.post_id, user_id=target.id, key=encrypted_key))
+
+    db.session.commit()
     return {"id": target.id, "username": target.username}
 
 
@@ -211,6 +223,7 @@ def group_add():
 @_login_required
 def group_remove(user_id):
     current = _current_user()
+    # target is the user to remove
     target = db.session.get(User, user_id)
 
     if not target or target.group_id != current.group_id:
@@ -219,6 +232,9 @@ def group_remove(user_id):
     group = current.group
     if len(group.members) == 1:
         return {"error": "Cannot remove yourself — you are the only member"}, 400
+
+    # Delete all PostKeys belonging to target so they cannot read their old group's posts anymore
+    PostKey.query.filter_by(user_id=target.id).delete()
 
     _make_solo_group(target)
     db.session.commit()
