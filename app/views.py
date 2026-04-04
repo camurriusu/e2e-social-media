@@ -222,6 +222,9 @@ def group_add():
     target.group_id = user.group_id
     _cleanup_group(old_group)
 
+    # Target loses access to all posts from old group
+    PostKey.query.filter_by(user_id=target.id).delete()
+
     # Copy every PostKey the user holds to the target user
     for postkey in PostKey.query.filter_by(user_id=user.id).all():
         # Get AES key inside postkey
