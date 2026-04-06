@@ -6,11 +6,10 @@ from flask_session import Session
 
 from .crypto import generate_ca, load_ca
 from .db import db
-from .routes import api
 from .views import views
 
 
-def create_app(test_config: dict | None = None) -> Flask:
+def create_app() -> Flask:
     app = Flask(__name__)
     app.config.update(
         SECRET_KEY="change-me-before-production",
@@ -22,9 +21,6 @@ def create_app(test_config: dict | None = None) -> Flask:
         SESSION_PERMANENT=False,
     )
 
-    if test_config:
-        app.config.update(test_config)
-
     Session(app)
     db.init_app(app)
 
@@ -34,7 +30,6 @@ def create_app(test_config: dict | None = None) -> Flask:
 
     _init_ca(app)
 
-    app.register_blueprint(api, url_prefix="/api")
     app.register_blueprint(views)
 
     return app
