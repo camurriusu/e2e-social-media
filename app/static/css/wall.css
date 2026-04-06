@@ -95,7 +95,55 @@
   color: #fff;
 }
 .circle.removable:hover .circle-remove { display: flex; }
-.circle.overflow { color: var(--text-dim); font-size: .7rem; cursor: default; }
+.circle.overflow { color: var(--text-dim); font-size: .7rem; cursor: pointer; }
+.overflow-tooltip {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: .35rem .25rem;
+  min-width: 130px;
+  z-index: 100;
+  display: none;
+  flex-direction: column;
+  gap: .15rem;
+}
+.overflow-tooltip::after {
+  content: "";
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 5px solid transparent;
+  border-top-color: var(--border);
+}
+.circle.overflow:hover .overflow-tooltip,
+.overflow-tooltip:hover { display: flex; }
+.overflow-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: .25rem .5rem;
+  border-radius: 4px;
+  font-size: .8rem;
+  color: var(--text);
+  gap: .5rem;
+}
+.overflow-row:hover { background: var(--border); }
+.overflow-remove {
+  background: none;
+  border: none;
+  color: var(--danger);
+  cursor: pointer;
+  font-size: .75rem;
+  padding: 0 .1rem;
+  line-height: 1;
+  font-family: inherit;
+}
+.overflow-remove:hover { color: #e57373; }
 .circle.add-btn {
   border-style: dashed;
   color: var(--text-dim);

@@ -59,8 +59,24 @@ function renderCircles() {
   if (overflow > 0) {
     const el = document.createElement("div");
     el.className = "circle overflow";
-    el.title = members.slice(VISIBLE_MAX).map(m => m.username).join("\n");
     el.textContent = `+${overflow}`;
+
+    const tooltip = document.createElement("div");
+    tooltip.className = "overflow-tooltip";
+    members.slice(VISIBLE_MAX).forEach(m => {
+      const row = document.createElement("div");
+      row.className = "overflow-row";
+      const name = document.createElement("span");
+      name.textContent = m.username;
+      const btn = document.createElement("button");
+      btn.className = "overflow-remove";
+      btn.textContent = "✕";
+      btn.addEventListener("click", e => { e.stopPropagation(); removeMember(m.id); });
+      row.appendChild(name);
+      row.appendChild(btn);
+      tooltip.appendChild(row);
+    });
+    el.appendChild(tooltip);
     container.appendChild(el);
   }
 
