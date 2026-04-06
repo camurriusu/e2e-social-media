@@ -6,7 +6,7 @@ from cryptography.hazmat.primitives import serialization
 from flask import Blueprint, flash, redirect, render_template, request, session, url_for, current_app
 
 from .crypto import generate_keypair, encrypt_private_key, decrypt_private_key, encrypt_post, encrypt_symmetric_key, \
-    decrypt_symmetric_key, decrypt_post
+    decrypt_symmetric_key, decrypt_post, verify_cert
 from .db import db
 from .models import Group, Post, User, PostKey
 
@@ -41,6 +41,13 @@ def _cleanup_group(group: Group) -> None:
     """Delete a group if it has no members."""
     if not group.members:
         db.session.delete(group)
+
+
+def _load_private_key():
+    pem = session.get("private_key_pem")
+    if not pem:
+        return None
+    return serialization.load_pem_private_key(pem.encode(), password=None)
 
 
 @views.get("/")
@@ -156,7 +163,7 @@ def wall():
             db.session.flush()
             # For every member in the same group
             for member in User.query.filter_by(group_id=user.group_id).all():
-                if member.certificate:
+                if member.certificate and verify_cert(member.certificate, current_app.config["CA_CERT"]):
                     # Encrypt post AES key with member's public key
                     public_key = x509.load_pem_x509_certificate(member.certificate.encode()).public_key()
                     encrypted_key = encrypt_symmetric_key(aes_key, public_key)
@@ -167,12 +174,9 @@ def wall():
 
     posts = Post.query.order_by(Post.created_at.desc()).all()
 
-    # Get RSAPrivateKey from session PEM
-    # If not found, then logout since session likely expired
-    if not session.get("private_key_pem"):
+    private_key = _load_private_key()
+    if private_key is None:
         return redirect(url_for("views.logout"))
-
-    private_key = serialization.load_pem_private_key(session["private_key_pem"].encode(), password=None)
     # Make map {post id: encrypted aes key} of posts that this user can read
     post_keys = {postkey.post_id: postkey.key for postkey in PostKey.query.filter_by(user_id=user.id).all()}
 
@@ -210,13 +214,11 @@ def group_add():
     if target.group_id == user.group_id:
         return {"error": "Already in group"}, 409
 
-    # Get RSAPrivateKey from session PEM
-    # If not found, then return error since session likely expired
-    if not session.get("private_key_pem"):
-        # Can't redirect since this endpoint is called by fetch() and not by browser
-        # 401 redirects to login page in wall.js anyway
+    # Can't redirect since this endpoint is called by fetch() and not by browser
+    # 401 redirects to login page in wall.js anyway
+    private_key = _load_private_key()
+    if private_key is None:
         return {"error": "Session expired"}, 401
-    private_key = serialization.load_pem_private_key(session["private_key_pem"].encode(), password=None)
 
     old_group = target.group
     target.group_id = user.group_id
@@ -225,12 +227,15 @@ def group_add():
     # Target loses access to all posts from old group
     PostKey.query.filter_by(user_id=target.id).delete()
 
+    if not target.certificate or not verify_cert(target.certificate, current_app.config["CA_CERT"]):
+        return {"error": "Invalid certificate"}, 400
+    target_public_key = x509.load_pem_x509_certificate(target.certificate.encode()).public_key()
+
     # Copy every PostKey the user holds to the target user
     for postkey in PostKey.query.filter_by(user_id=user.id).all():
         # Get AES key inside postkey
         aes_key = decrypt_symmetric_key(postkey.key, private_key)
         # Encrypt it using target's public key so that they can decrypt it to read the post
-        target_public_key = x509.load_pem_x509_certificate(target.certificate.encode()).public_key()
         encrypted_key = encrypt_symmetric_key(aes_key, target_public_key)
         db.session.add(PostKey(post_id=postkey.post_id, user_id=target.id, key=encrypted_key))
 
