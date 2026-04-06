@@ -44,9 +44,9 @@ def generate_ca() -> tuple[rsa.RSAPrivateKey, x509.Certificate]:
     return keypair, cert
 
 
-def load_ca(keypair_path: Path, cert_path: Path) -> tuple[rsa.RSAPrivateKey, x509.Certificate]:
+def load_ca(keypair_path: Path, cert_path: Path, passphrase: bytes) -> tuple[rsa.RSAPrivateKey, x509.Certificate]:
     # Load CA keypair and cert if exists
-    keypair = serialization.load_pem_private_key(keypair_path.read_bytes(), password=None)
+    keypair = serialization.load_pem_private_key(keypair_path.read_bytes(), password=passphrase)
     cert = x509.load_pem_x509_certificate(cert_path.read_bytes())
     return keypair, cert
 

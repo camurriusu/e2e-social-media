@@ -1,4 +1,8 @@
+import os
 from pathlib import Path
+
+from dotenv import load_dotenv
+load_dotenv()
 
 from cryptography.hazmat.primitives import serialization
 from flask import Flask
@@ -36,6 +40,11 @@ def create_app() -> Flask:
 
 
 def _init_ca(app: Flask) -> None:
+    passphrase = os.environ.get("CA_KEY_PASSPHRASE")
+    if not passphrase:
+        raise RuntimeError("CA_KEY_PASSPHRASE environment variable is not set")
+    passphrase_bytes = passphrase.encode()
+
     # Create CA key and cert paths
     ca_dir = Path(app.config.get("CA_DIR", "ca"))
     ca_dir.mkdir(parents=True, exist_ok=True)
@@ -44,14 +53,14 @@ def _init_ca(app: Flask) -> None:
 
     # If key and cert exist, load
     if key_path.exists() and cert_path.exists():
-        ca_key, ca_cert = load_ca(key_path, cert_path)
+        ca_key, ca_cert = load_ca(key_path, cert_path, passphrase_bytes)
     # Else, generate new ones and save
     else:
         ca_key, ca_cert = generate_ca()
         # Encode key and cert as PEM
         private_key_pem = ca_key.private_bytes(encoding=serialization.Encoding.PEM,
                                                format=serialization.PrivateFormat.PKCS8,
-                                               encryption_algorithm=serialization.NoEncryption()).decode()
+                                               encryption_algorithm=serialization.BestAvailableEncryption(passphrase_bytes)).decode()
         key_path.write_text(private_key_pem)
         cert_path.write_text(ca_cert.public_bytes(serialization.Encoding.PEM).decode())
 
